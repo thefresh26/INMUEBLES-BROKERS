@@ -140,7 +140,17 @@ main{flex:1;padding:28px 32px;max-width:980px;margin:0 auto;width:100%;}
 footer{background:var(--navy);padding:18px 32px;font-size:11px;color:rgba(255,255,255,.4);font-family:var(--body);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;}
 footer span{color:rgba(255,255,255,.6);}
 .footer-logo{font-family:var(--sans);font-weight:700;font-size:12px;color:var(--yellow);}
+/* ADMIN PANEL */
+#admin-wrap{max-width:980px;margin:0 auto;padding:4px 32px 28px;}
+#admin-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+#admin-pw{background:rgba(0,0,0,.04);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--text);outline:none;width:150px;font-family:var(--body);}
+#admin-pw:focus{border-color:var(--navy);box-shadow:0 0 0 2px rgba(13,31,60,.1);}
+#btn-kmz{display:none;align-items:center;gap:7px;background:var(--navy);color:var(--white);border:none;border-radius:8px;padding:9px 18px;font-family:var(--sans);font-weight:700;font-size:12px;cursor:pointer;transition:opacity .15s;}
+#btn-kmz:hover{opacity:.85;}
+#btn-kmz:disabled{opacity:.5;cursor:not-allowed;}
+#kmz-status{display:none;font-size:11px;color:var(--muted);font-family:var(--body);}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
 
@@ -168,6 +178,16 @@ footer span{color:rgba(255,255,255,.6);}
   <div id="sb"></div>
   <div id="result"></div>
 </main>
+<div id="admin-wrap">
+  <div id="admin-bar">
+    <input type="password" id="admin-pw" placeholder="••••••••" autocomplete="off">
+    <button id="btn-kmz" onclick="downloadKMZ()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Descargar KMZ
+    </button>
+    <span id="kmz-status"></span>
+  </div>
+</div>
 
 
 <script>
@@ -361,6 +381,67 @@ async function buscar(){
   }catch(e){
     sb.style.display='block';sb.className='error';
     sb.textContent='⚠ Error al consultar la base de datos. Verifica tu conexión e intenta de nuevo.';
+  }
+}
+
+document.getElementById('admin-pw').addEventListener('input',function(){
+  document.getElementById('btn-kmz').style.display=this.value==='admin2026'?'inline-flex':'none';
+});
+
+function escXml(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function downloadKMZ(){
+  const status=document.getElementById('kmz-status');
+  const btn=document.getElementById('btn-kmz');
+  status.style.display='inline';
+  status.textContent='⏳ Descargando datos...';
+  btn.disabled=true;
+  try{
+    const url=SUPABASE_URL+'/rest/v1/inventario?georeferenciado=not.is.null&select=fmi,municipio,departamento,direccion,disponibilidad,estado_viabilidad,clasificacion_activo,georeferenciado&limit=40000';
+    const resp=await fetch(url,{headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}});
+    if(!resp.ok)throw new Error('HTTP '+resp.status);
+    const data=await resp.json();
+    status.textContent=`⚙ Generando KML (${data.length} inmuebles)...`;
+    const re=/@(-?\d+\.\d+),(-?\d+\.\d+)/;
+    const placemarks=data.map(r=>{
+      const m=r.georeferenciado&&r.georeferenciado.match(re);
+      if(!m)return'';
+      const lon=m[1],lat=m[2];
+      return`    <Placemark>
+      <name>${escXml(r.fmi)}</name>
+      <description><![CDATA[FMI: ${r.fmi||'—'}
+Municipio: ${r.municipio||'—'}
+Departamento: ${r.departamento||'—'}
+Dirección: ${r.direccion||'—'}
+Disponibilidad: ${r.disponibilidad||'—'}
+Estado Viabilidad: ${r.estado_viabilidad||'—'}
+Clasificación: ${r.clasificacion_activo||'—'}]]></description>
+      <Point><coordinates>${lon},${lat},0</coordinates></Point>
+    </Placemark>`;
+    }).filter(Boolean).join('\n');
+    const kml=`<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Inventario Activos por Colombia</name>
+${placemarks}
+  </Document>
+</kml>`;
+    status.textContent='⚙ Comprimiendo...';
+    const zip=new JSZip();
+    zip.file('doc.kml',kml);
+    const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='inventario_activos.kmz';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+    status.textContent=`✓ Descargado — ${data.length} puntos georeferenciados`;
+  }catch(e){
+    status.textContent='⚠ Error: '+e.message;
+  }finally{
+    btn.disabled=false;
   }
 }
 </script>
