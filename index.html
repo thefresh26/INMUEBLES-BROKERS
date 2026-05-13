@@ -347,7 +347,7 @@ function stitleHtml(iconPath,label){
 }
 
 async function buscar(){
-  const q=document.getElementById('qi').value.trim().toUpperCase();
+  const q=document.getElementById('qi').value.trim();
   const sb=document.getElementById('sb');
   const res=document.getElementById('result');
   if(!q)return;
@@ -355,7 +355,7 @@ async function buscar(){
   sb.textContent='⏳ Consultando base de datos...';
   res.style.display='none';
   try{
-    const url=`${SUPABASE_URL}/rest/v1/inventario?fmi=eq.${encodeURIComponent(q)}&limit=1`;
+    const url=`${SUPABASE_URL}/rest/v1/inventario?fmi=ilike.${encodeURIComponent(q)}&limit=1`;
     const resp=await fetch(url,{
       headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
     });
@@ -368,11 +368,14 @@ async function buscar(){
     }
     const r=data[0];
 
-    const vResp=await fetch(`${SUPABASE_URL}/rest/v1/inventario_Activos?fmi=eq.${encodeURIComponent(q)}&select=fmi&limit=1`,{
-      headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
-    });
-    const vData=vResp.ok?await vResp.json():[];
-    const vExists=vData&&vData.length>0;
+    let vExists=false;
+    try{
+      const vResp=await fetch(`${SUPABASE_URL}/rest/v1/inventario_Activos?fmi=ilike.${encodeURIComponent(q)}&select=fmi&limit=1`,{
+        headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
+      });
+      const vData=vResp.ok?await vResp.json():[];
+      vExists=Array.isArray(vData)&&vData.length>0;
+    }catch(_){}
 
     sb.style.display='none';
     res.style.display='block';
