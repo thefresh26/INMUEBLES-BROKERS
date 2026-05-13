@@ -199,8 +199,8 @@ footer span{color:rgba(255,255,255,.6);}
 
 <div class="hero">
   <div class="hero-inner">
-    <div class="hero-eyebrow">Consulta de Inventario · Mayo 2026</div>
-    <h1>Encuentra la información <span>completa</span> de tu inmueble</h1>
+    <div class="hero-eyebrow" id="hero-eyebrow">Consulta de Inventario · Mayo 2026</div>
+    <h1>Encuentra la información <span>completa</span> del Inmueble</h1>
     <p>Ingresa el FMI para consultar disponibilidad, estado, semáforo de viabilidad y todos los detalles del activo.</p>
     <div class="search-card">
       <label class="search-label">Número de FMI</label>
@@ -255,6 +255,8 @@ function doLogin(){
   if(c && c.pass === pass){
     currentRole = c.role;
     document.getElementById('login-overlay').style.display = 'none';
+    document.getElementById('hero-eyebrow').textContent =
+      user === 'broker2026' ? 'INTRANET BROKERS · 2026' : 'INTRANET COMERCIAL · 2026';
     if(currentRole === 'broker'){
       document.getElementById('admin-wrap').style.display = 'none';
     }
