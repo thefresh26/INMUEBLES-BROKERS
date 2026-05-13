@@ -306,16 +306,16 @@ function chip(v,tipo){
 }
 
 function semaforo(r){
-  const pct=Math.round((r.AVANCE||0)*100);
+  const pct=Math.round((r.avance||0)*100);
   let fillColor,textColor;
   if(pct>=70){fillColor='linear-gradient(90deg,#1ab87a,#2ed18e)';textColor='#138f5e';}
   else if(pct>=40){fillColor='linear-gradient(90deg,#f07b00,#f5a800)';textColor='#b85c00';}
   else{fillColor='linear-gradient(90deg,#c02020,#e03535)';textColor='#c02020';}
   const items=[
-    {label:'Catastral',peso:'10%',val:r.BK_CATASTRAL_10},
-    {label:'Avalúo Comercial',peso:'40%',val:r.BL_AVALUO_40},
-    {label:'Enajenación',peso:'20%',val:r.BM_ENAJENACION_20},
-    {label:'Viabilidad Jca.',peso:'30%',val:r.BN_VIABILIDAD_30},
+    {label:'Catastral',peso:'10%',val:r.bk_catastral_10},
+    {label:'Avalúo Comercial',peso:'40%',val:r.bl_avaluo_40},
+    {label:'Enajenación',peso:'20%',val:r.bm_enajenacion_20},
+    {label:'Viabilidad Jca.',peso:'30%',val:r.bn_viabilidad_30},
   ];
   return`
   <div class="sem-header">
@@ -359,6 +359,7 @@ async function buscar(){
     });
     if(!resp.ok)throw new Error('HTTP '+resp.status);
     const data=await resp.json();
+    console.log('Datos recibidos:', data);
     if(!data||data.length===0){
       sb.style.display='block';sb.className='empty';
       sb.textContent=`⚠ No se encontró ningún inmueble con FMI "${q}". Verifica el número e intenta de nuevo.`;return;
@@ -367,11 +368,11 @@ async function buscar(){
     sb.style.display='none';
     res.style.display='block';
 
-    const mapLink=r.GEOREF
-      ?`<a class="map-link" href="${r.GEOREF}" target="_blank">${icon('<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>')} Ver ubicación en mapa</a>`
+    const mapLink=r.georeferenciado
+      ?`<a class="map-link" href="${r.georeferenciado}" target="_blank">${icon('<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>')} Ver ubicación en mapa</a>`
       :'<span class="null">Sin georreferenciación</span>';
 
-    const dispBadge=r.DISPONIBILIDAD==='DISPONIBLE'
+    const dispBadge=r.disponibilidad==='DISPONIBLE'
       ?'<span class="disp d-ok">✓ DISPONIBLE</span>'
       :'<span class="disp d-no">✕ NO DISPONIBLE</span>';
 
@@ -379,8 +380,8 @@ async function buscar(){
     <div class="top-card">
       <div class="tc-left">
         <div class="tc-label">Folio Matrícula Inmobiliaria</div>
-        <div class="fmi-num">${r.FMI}</div>
-        <div class="tc-sub">${fmt(r.CLASIFICACION_ACTIVO)} &nbsp;·&nbsp; ${fmt(r.SUBTIPO_ACTIVO)} &nbsp;·&nbsp; ${fmt(r.MUNICIPIO)}, ${fmt(r.DEPARTAMENTO)}</div>
+        <div class="fmi-num">${r.fmi}</div>
+        <div class="tc-sub">${fmt(r.clasificacion_activo)} &nbsp;·&nbsp; ${fmt(r.subtipo_activo)} &nbsp;·&nbsp; ${fmt(r.municipio)}, ${fmt(r.departamento)}</div>
       </div>
       <div class="tc-right">
         ${dispBadge}
@@ -390,21 +391,21 @@ async function buscar(){
     <div class="sec">
       ${stitleHtml('<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>','Ubicación del Inmueble')}
       <div class="g2">
-        <div class="f"><label>Dirección</label><div class="v">${fmt(r.DIRECCION)}</div></div>
-        <div class="f"><label>Municipio / Departamento</label><div class="v">${fmt(r.MUNICIPIO)}, ${fmt(r.DEPARTAMENTO)}</div></div>
-        <div class="f"><label>Estrato</label><div class="v vm">${fmt(r.ESTRATO)}</div></div>
-        <div class="f"><label>Razón Social</label><div class="v" style="font-size:11px">${fmt(r.RAZON_SOCIAL)}</div></div>
+        <div class="f"><label>Dirección</label><div class="v">${fmt(r.direccion)}</div></div>
+        <div class="f"><label>Municipio / Departamento</label><div class="v">${fmt(r.municipio)}, ${fmt(r.departamento)}</div></div>
+        <div class="f"><label>Estrato</label><div class="v vm">${fmt(r.estrato)}</div></div>
+        <div class="f"><label>Razón Social</label><div class="v" style="font-size:11px">${fmt(r.razon_social)}</div></div>
       </div>
     </div>
     <div class="sec">
       ${stitleHtml('<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>','Estado del Inmueble')}
       <div class="g3">
-        <div class="f"><label>Disponibilidad</label><div class="v">${chip(r.DISPONIBILIDAD,'disp')}</div></div>
-        <div class="f"><label>Estado de Ocupación</label><div class="v">${chip(r.ESTADO_OCUPACION,'ocup')}</div></div>
-        <div class="f"><label>Estado Físico</label><div class="v">${chip(r.ESTADO_FISICO,'fis')}</div></div>
-        <div class="f"><label>Estado Legal</label><div class="v" style="font-size:11px;line-height:1.5">${fmt(r.ESTADO_LEGAL)}</div></div>
-        <div class="f"><label>Estado Inventario</label><div class="v">${chip(r.ESTADO_INVENTARIO,'inv')}</div></div>
-        <div class="f"><label>Estado Viabilidad</label><div class="v">${chip(r.ESTADO_VIABILIDAD,'via')}</div></div>
+        <div class="f"><label>Disponibilidad</label><div class="v">${chip(r.disponibilidad,'disp')}</div></div>
+        <div class="f"><label>Estado de Ocupación</label><div class="v">${chip(r.estado_ocupacion,'ocup')}</div></div>
+        <div class="f"><label>Estado Físico</label><div class="v">${chip(r.estado_fisico,'fis')}</div></div>
+        <div class="f"><label>Estado Legal</label><div class="v" style="font-size:11px;line-height:1.5">${fmt(r.estado_legal)}</div></div>
+        <div class="f"><label>Estado Inventario</label><div class="v">${chip(r.estado_inventario,'inv')}</div></div>
+        <div class="f"><label>Estado Viabilidad</label><div class="v">${chip(r.estado_viabilidad,'via')}</div></div>
       </div>
     </div>
     <div class="sec">
@@ -414,43 +415,43 @@ async function buscar(){
     <div class="sec">
       ${stitleHtml('<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>','Avalúos y Áreas')}
       <div class="g2">
-        <div class="f"><label>Vigencia Catastral</label><div class="v vm">${fmt(r.VIGENCIA_CATASTRAL)}</div></div>
-        <div class="f"><label>Estado Avalúo</label><div class="v">${chip(r.ESTADO_AVALUO,'aval')}</div></div>
-        <div class="f"><label>Avalúo Catastral</label><div class="v vm">${fmtM(r.AVALUO_CATASTRAL)}</div></div>
-        ${currentRole==='comercial'?`<div class="f"><label>Avalúo Comercial</label><div class="v vm">${fmtM(r.AVALUO_COMERCIAL)}</div></div>`:''}
-        <div class="f"><label>Fecha de Avalúo</label><div class="v vm">${fmt(r.FECHA_AVALUO)}</div></div>
-        <div class="f"><label>Vencimiento Avalúo</label><div class="v vm">${fmt(r.FECHA_VENCIMIENTO_AVALUO)}</div></div>
-        <div class="f"><label>Área Construida</label><div class="v vm">${fmtA(r.AREA_CONSTRUIDA)}</div></div>
-        <div class="f"><label>Área Terreno</label><div class="v vm">${fmtA(r.AREA_TERRENO)}</div></div>
+        <div class="f"><label>Vigencia Catastral</label><div class="v vm">${fmt(r.vigencia_catastral)}</div></div>
+        <div class="f"><label>Estado Avalúo</label><div class="v">${chip(r.estado_avaluo,'aval')}</div></div>
+        <div class="f"><label>Avalúo Catastral</label><div class="v vm">${fmtM(r.avaluo_catastral)}</div></div>
+        ${currentRole==='comercial'?`<div class="f"><label>Avalúo Comercial</label><div class="v vm">${fmtM(r.avaluo_comercial)}</div></div>`:''}
+        <div class="f"><label>Fecha de Avalúo</label><div class="v vm">${fmt(r.fecha_avaluo)}</div></div>
+        <div class="f"><label>Vencimiento Avalúo</label><div class="v vm">${fmt(r.fecha_vencimiento_avaluo)}</div></div>
+        <div class="f"><label>Área Construida</label><div class="v vm">${fmtA(r.area_construida)}</div></div>
+        <div class="f"><label>Área Terreno</label><div class="v vm">${fmtA(r.area_terreno)}</div></div>
       </div>
     </div>
     <div class="sec">
       ${stitleHtml('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>','Enajenación y Proceso')}
       <div class="g2">
-        <div class="f"><label>Causal</label><div class="v">${fmt(r.CAUSAL)}</div></div>
-        <div class="f"><label>Enajenación</label><div class="v">${fmt(r.ENAJENACION)}</div></div>
-        <div class="f"><label>OK Vigencia Catastral</label><div class="v">${chip(r.OK_VIGENCIA_CATASTRAL,'ok')}</div></div>
-        <div class="f"><label>OK Causal Enajenación</label><div class="v">${chip(r.OK_CAUSAL_ENAJENACION,'ok')}</div></div>
-        <div class="f"><label>Más de 5 Enajenaciones</label><div class="v vm">${fmt(r.MAS_5_ENAJENACION)}</div></div>
-        <div class="f"><label>OK Vencimiento Avalúo</label><div class="v">${chip(r.OK_VENCIMIENTO_AVALUO,'ok')}</div></div>
-        <div class="f"><label>Meses Viable Jurídico</label><div class="v vm">${fmtMeses(r.MESES_VIABLE_JURIDICO)}</div></div>
-        <div class="f"><label>Proceso Actual</label><div class="v" style="font-size:11px">${fmt(r.PROCESO)}</div></div>
+        <div class="f"><label>Causal</label><div class="v">${fmt(r.causal)}</div></div>
+        <div class="f"><label>Enajenación</label><div class="v">${fmt(r.enajenacion)}</div></div>
+        <div class="f"><label>OK Vigencia Catastral</label><div class="v">${chip(r.ok_vigencia_catastral,'ok')}</div></div>
+        <div class="f"><label>OK Causal Enajenación</label><div class="v">${chip(r.ok_causal_enajenacion,'ok')}</div></div>
+        <div class="f"><label>Más de 5 Enajenaciones</label><div class="v vm">${fmt(r.mas_5_enajenacion)}</div></div>
+        <div class="f"><label>OK Vencimiento Avalúo</label><div class="v">${chip(r.ok_vencimiento_avaluo,'ok')}</div></div>
+        <div class="f"><label>Meses Viable Jurídico</label><div class="v vm">${fmtMeses(r.meses_viable_juridico)}</div></div>
+        <div class="f"><label>Proceso Actual</label><div class="v" style="font-size:11px">${fmt(r.proceso)}</div></div>
       </div>
     </div>
     <div class="sec">
       ${stitleHtml('<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>','Comercialización')}
       <div class="g2">
-        <div class="f"><label>Estado Comercial</label><div class="v">${fmt(r.ESTADO_COMERCIAL)}</div></div>
-        <div class="f"><label>Estado de Comercialización</label><div class="v">${fmt(r.ESTADO_COMERCIALIZACION)}</div></div>
-        <div class="f"><label>Estado de Publicación</label><div class="v">${fmt(r.ESTADO_PUBLICACION)}</div></div>
-        <div class="f"><label>Mecanismo de Administración</label><div class="v">${fmt(r.MECANISMO_ADMIN)}</div></div>
+        <div class="f"><label>Estado Comercial</label><div class="v">${fmt(r.estado_comercial)}</div></div>
+        <div class="f"><label>Estado de Comercialización</label><div class="v">${fmt(r.estado_comercializacion)}</div></div>
+        <div class="f"><label>Estado de Publicación</label><div class="v">${fmt(r.estado_publicacion)}</div></div>
+        <div class="f"><label>Mecanismo de Administración</label><div class="v">${fmt(r.mecanismo_admin)}</div></div>
       </div>
     </div>
-    ${(r.OBSERVACIONES||r.OBS_VIABILIDAD)?`
+    ${(r.observaciones||r.obs_viabilidad)?`
     <div class="sec">
       ${stitleHtml('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>','Observaciones')}
-      ${r.OBSERVACIONES?`<div class="f" style="margin-bottom:12px"><label>Observaciones Generales</label><div class="obs">${r.OBSERVACIONES}</div></div>`:''}
-      ${r.OBS_VIABILIDAD?`<div class="f"><label>Observaciones Viabilidad</label><div class="obs">${r.OBS_VIABILIDAD}</div></div>`:''}
+      ${r.observaciones?`<div class="f" style="margin-bottom:12px"><label>Observaciones Generales</label><div class="obs">${r.observaciones}</div></div>`:''}
+      ${r.obs_viabilidad?`<div class="f"><label>Observaciones Viabilidad</label><div class="obs">${r.obs_viabilidad}</div></div>`:''}
     </div>`:''}
     `;
   }catch(e){
