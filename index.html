@@ -368,7 +368,7 @@ async function buscar(){
     }
     const r=data[0];
 
-    const vResp=await fetch(`${SUPABASE_URL}/rest/v1/viabilidad?fmi=eq.${encodeURIComponent(q)}&select=viabilidad&limit=1`,{
+    const vResp=await fetch(`${SUPABASE_URL}/rest/v1/inventario_Activos?fmi=eq.${encodeURIComponent(q)}&select=viabilidad&limit=1`,{
       headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
     });
     const vData=vResp.ok?await vResp.json():[];
@@ -413,7 +413,7 @@ async function buscar(){
         <div class="f"><label>Estado de Ocupación</label><div class="v">${chip(r.estado_ocupacion,'ocup')}</div></div>
         <div class="f"><label>Estado Físico</label><div class="v">${chip(r.estado_fisico,'fis')}</div></div>
         <div class="f"><label>Estado Legal</label><div class="v">${String(r.bm_enajenacion_20||'').toUpperCase()==='OK'?'<span class="chip cg">✓ Enajenación Temprana</span>':'<span class="chip cr">✕ Extinto 100</span>'}</div></div>
-        <div class="f"><label>Estado Viabilidad</label><div class="v">${vVal==='viable'?'<span class="chip cg">✓ Sí</span>':vVal==='no_viable'?'<span class="chip cr">✕ No</span>':vVal?`<span class="chip cgr">${vVal}</span>`:'<span class="null">—</span>'}</div></div>
+        <div class="f"><label>Estado Viabilidad</label><div class="v">${vVal==='viable'?'<span class="chip cg">✓ Sí</span>':vVal==='no_viable'?'<span class="chip cr">✕ No</span>':vVal==='saneamiento_juridico'?'<span class="chip cy">⚠ Saneamiento</span>':'<span class="chip cgr">—</span>'}</div></div>
       </div>
     </div>
     <div class="sec">
