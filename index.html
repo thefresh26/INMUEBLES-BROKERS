@@ -332,11 +332,11 @@ function semaforo(r){
     </div>
   </div>
   <div class="sem-items">
-    ${items.map(it=>`<div class="sem-item ${it.val==='OK'?'ok':'no'}">
+    ${items.map(it=>{const ok=String(it.val||'').toUpperCase()==='OK';return`<div class="sem-item ${ok?'ok':'no'}">
       <label>${it.label}</label>
-      <div class="sval">${it.val==='OK'?'✓ Cumple':'✕ No cumple'}</div>
+      <div class="sval">${ok?'✓ Cumple':'✕ No cumple'}</div>
       <div class="spct">Peso: ${it.peso}</div>
-    </div>`).join('')}
+    </div>`;}).join('')}
   </div>`;
 }
 
@@ -372,7 +372,7 @@ async function buscar(){
       ?`<a class="map-link" href="${r.georeferenciado}" target="_blank">${icon('<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>')} Ver ubicación en mapa</a>`
       :'<span class="null">Sin georreferenciación</span>';
 
-    const dispBadge=r.disponibilidad==='DISPONIBLE'
+    const dispBadge=String(r.disponibilidad||'').toUpperCase()==='DISPONIBLE'
       ?'<span class="disp d-ok">✓ DISPONIBLE</span>'
       :'<span class="disp d-no">✕ NO DISPONIBLE</span>';
 
@@ -404,7 +404,6 @@ async function buscar(){
         <div class="f"><label>Estado de Ocupación</label><div class="v">${chip(r.estado_ocupacion,'ocup')}</div></div>
         <div class="f"><label>Estado Físico</label><div class="v">${chip(r.estado_fisico,'fis')}</div></div>
         <div class="f"><label>Estado Legal</label><div class="v" style="font-size:11px;line-height:1.5">${fmt(r.estado_legal)}</div></div>
-        <div class="f"><label>Estado Inventario</label><div class="v">${chip(r.estado_inventario,'inv')}</div></div>
         <div class="f"><label>Estado Viabilidad</label><div class="v">${chip(r.estado_viabilidad,'via')}</div></div>
       </div>
     </div>
@@ -442,17 +441,9 @@ async function buscar(){
       ${stitleHtml('<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>','Comercialización')}
       <div class="g2">
         <div class="f"><label>Estado Comercial</label><div class="v">${fmt(r.estado_comercial)}</div></div>
-        <div class="f"><label>Estado de Comercialización</label><div class="v">${fmt(r.estado_comercializacion)}</div></div>
         <div class="f"><label>Estado de Publicación</label><div class="v">${fmt(r.estado_publicacion)}</div></div>
-        <div class="f"><label>Mecanismo de Administración</label><div class="v">${fmt(r.mecanismo_admin)}</div></div>
       </div>
     </div>
-    ${(r.observaciones||r.obs_viabilidad)?`
-    <div class="sec">
-      ${stitleHtml('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>','Observaciones')}
-      ${r.observaciones?`<div class="f" style="margin-bottom:12px"><label>Observaciones Generales</label><div class="obs">${r.observaciones}</div></div>`:''}
-      ${r.obs_viabilidad?`<div class="f"><label>Observaciones Viabilidad</label><div class="obs">${r.obs_viabilidad}</div></div>`:''}
-    </div>`:''}
     `;
   }catch(e){
     sb.style.display='block';sb.className='error';
