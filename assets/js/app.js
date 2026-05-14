@@ -251,14 +251,15 @@ async function downloadKMZ(){
     if(!resp.ok)throw new Error('HTTP '+resp.status);
     if(!vResp.ok)throw new Error('HTTP viabilidad '+vResp.status);
     const [data,vData]=await Promise.all([resp.json(),vResp.json()]);
-    const viables=new Set(vData.map(v=>v.fmi));
+    const viabilidadSet=new Set(vData.map(v=>v.fmi));
+    console.log('FMIs viabilidad:',viabilidadSet.size);
     status.textContent=`⚙ Generando KML (${data.length} inmuebles)...`;
     const re=/@(-?\d+\.\d+),(-?\d+\.\d+)/;
     const placemarks=data.map(r=>{
       const m=r.georeferenciado&&r.georeferenciado.match(re);
       if(!m)return'';
       const lon=m[1],lat=m[2];
-      const viable=viables.has(r.fmi)?'✓ Sí':'✕ No';
+      const viable=viabilidadSet.has(r.fmi)?'✓ Sí':'✕ No';
       return`    <Placemark>
       <name>${escXml(r.fmi)}</name>
       <description><![CDATA[FMI: ${r.fmi||'—'}
