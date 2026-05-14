@@ -240,19 +240,25 @@ async function downloadKMZ(){
   const status=document.getElementById('kmz-status');
   const btn=document.getElementById('btn-kmz');
   status.style.display='inline';
-  status.textContent='⏳ Descargando datos...';
+  status.textContent='⏳ Descargando inventario y viabilidades...';
   btn.disabled=true;
   try{
-    const url=SUPABASE_URL+'/rest/v1/inventario_SAE?georeferenciado=not.is.null&select=fmi,municipio,departamento,direccion,disponibilidad,estado_viabilidad,clasificacion_activo,georeferenciado&limit=40000';
-    const resp=await fetch(url,{headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json'}});
+    const headers={'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json'};
+    const [resp,vResp]=await Promise.all([
+      fetch(SUPABASE_URL+'/rest/v1/inventario_SAE?georeferenciado=not.is.null&select=fmi,municipio,departamento,direccion,disponibilidad,clasificacion_activo,georeferenciado&limit=40000',{headers}),
+      fetch(SUPABASE_URL+'/rest/v1/inventario_Activos?select=fmi&limit=10000',{headers})
+    ]);
     if(!resp.ok)throw new Error('HTTP '+resp.status);
-    const data=await resp.json();
+    if(!vResp.ok)throw new Error('HTTP viabilidad '+vResp.status);
+    const [data,vData]=await Promise.all([resp.json(),vResp.json()]);
+    const viables=new Set(vData.map(v=>v.fmi));
     status.textContent=`⚙ Generando KML (${data.length} inmuebles)...`;
     const re=/@(-?\d+\.\d+),(-?\d+\.\d+)/;
     const placemarks=data.map(r=>{
       const m=r.georeferenciado&&r.georeferenciado.match(re);
       if(!m)return'';
       const lon=m[1],lat=m[2];
+      const viable=viables.has(r.fmi)?'✓ Sí':'✕ No';
       return`    <Placemark>
       <name>${escXml(r.fmi)}</name>
       <description><![CDATA[FMI: ${r.fmi||'—'}
@@ -260,8 +266,8 @@ Municipio: ${r.municipio||'—'}
 Departamento: ${r.departamento||'—'}
 Dirección: ${r.direccion||'—'}
 Disponibilidad: ${r.disponibilidad||'—'}
-Estado Viabilidad: ${r.estado_viabilidad||'—'}
-Clasificación: ${r.clasificacion_activo||'—'}]]></description>
+Clasificación: ${r.clasificacion_activo||'—'}
+Estado Viabilidad: ${viable}]]></description>
       <Point><coordinates>${lon},${lat},0</coordinates></Point>
     </Placemark>`;
     }).filter(Boolean).join('\n');
