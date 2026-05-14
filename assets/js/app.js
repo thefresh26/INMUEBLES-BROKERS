@@ -1,0 +1,291 @@
+/* ── AUTH ── */
+let currentRole = null;
+const CREDS = {
+  'broker2026':   { pass:'Activos2026#$', role:'broker' },
+  'comercial2026':{ pass:'2026', role:'comercial' }
+};
+
+document.addEventListener('DOMContentLoaded',function(){
+  document.getElementById('l-user').focus();
+  ['l-user','l-pass'].forEach(id=>{
+    document.getElementById(id).addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+  });
+});
+
+function doLogin(){
+  const user = document.getElementById('l-user').value.trim();
+  const pass = document.getElementById('l-pass').value;
+  const err  = document.getElementById('l-err');
+  const c    = CREDS[user];
+  if(c && c.pass === pass){
+    currentRole = c.role;
+    document.getElementById('login-overlay').style.display = 'none';
+    document.getElementById('hero-eyebrow').textContent =
+      user === 'broker2026' ? 'INTRANET BROKERS · 2026' : 'INTRANET COMERCIAL · 2026';
+    if(currentRole === 'broker'){
+      document.getElementById('admin-wrap').style.display = 'none';
+    }
+  } else {
+    err.style.display = 'block';
+    document.getElementById('l-pass').value = '';
+    document.getElementById('l-pass').focus();
+  }
+}
+
+/* ── SUPABASE ── */
+const SUPABASE_URL='https://niemyawlnebylpidfefh.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pZW15YXdsbmVieWxwaWRmZWZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1OTAxNzUsImV4cCI6MjA5NDE2NjE3NX0.sUV59NOKURYE6kPDETaM_rddX_cDRltlu7xblC-OJF4';
+
+document.getElementById('qi').addEventListener('keydown',e=>{if(e.key==='Enter')buscar();});
+
+function nul(v){return v===null||v===undefined||v==='';}
+function fmt(v){if(nul(v))return '<span class="null">—</span>';return String(v);}
+function fmtM(v){if(nul(v))return '<span class="null">—</span>';const x=parseFloat(v);if(isNaN(x)||x===0)return '<span class="null">—</span>';return '$ '+x.toLocaleString('es-CO',{maximumFractionDigits:0});}
+function fmtA(v){if(nul(v))return '<span class="null">—</span>';const x=parseFloat(v);if(isNaN(x))return '<span class="null">—</span>';return x.toLocaleString('es-CO',{maximumFractionDigits:2})+' m²';}
+function fmtMeses(v){if(nul(v))return '<span class="null">—</span>';const x=parseFloat(v);if(isNaN(x))return fmt(v);return x.toFixed(1)+' meses';}
+
+function icon(path){return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">${path}</svg>`;}
+
+function chip(v,tipo){
+  if(nul(v))return '<span class="null">—</span>';
+  const u=String(v).toUpperCase();
+  if(tipo==='disp') return u==='DISPONIBLE'?`<span class="chip cg">✓ ${v}</span>`:`<span class="chip cr">✕ ${v}</span>`;
+  if(tipo==='ocup'){
+    if(u==='DESOCUPADO')return`<span class="chip cg">● ${v}</span>`;
+    if(u==='OCUPADO')return`<span class="chip cr">● ${v}</span>`;
+    return`<span class="chip cy">● ${v}</span>`;
+  }
+  if(tipo==='fis'){
+    if(u==='BUENO')return`<span class="chip cg">▲ ${v}</span>`;
+    if(u==='REGULAR')return`<span class="chip cy">▲ ${v}</span>`;
+    if(u==='MALO')return`<span class="chip cr">▼ ${v}</span>`;
+    return`<span class="chip cgr">${v}</span>`;
+  }
+  if(tipo==='via')return u==='VIABLE'?`<span class="chip cg">✓ ${v}</span>`:`<span class="chip cgr">${v}</span>`;
+  if(tipo==='inv'){
+    if(u.includes('ENAJENAC'))return`<span class="chip cb">${v}</span>`;
+    if(u.includes('DEVOLUC'))return`<span class="chip cr">${v}</span>`;
+    return`<span class="chip cy">${v}</span>`;
+  }
+  if(tipo==='aval')return u==='VIGENTE'?'<span class="chip cg">✓ Vigente</span>':'<span class="chip cr">✕ Vencido</span>';
+  if(tipo==='ok')return u==='OK'?'<span class="chip cg">✓ OK</span>':'<span class="chip cr">✕ NO</span>';
+  return`<span class="chip cgr">${v}</span>`;
+}
+
+function semaforo(r){
+  const pct=Math.round((r.avance||0)*100);
+  let fillColor,textColor;
+  if(pct>=70){fillColor='linear-gradient(90deg,#1ab87a,#2ed18e)';textColor='#138f5e';}
+  else if(pct>=40){fillColor='linear-gradient(90deg,#f07b00,#f5a800)';textColor='#b85c00';}
+  else{fillColor='linear-gradient(90deg,#c02020,#e03535)';textColor='#c02020';}
+  const items=[
+    {label:'Catastral',peso:'10%',val:r.bk_catastral_10},
+    {label:'Avalúo Comercial',peso:'40%',val:r.bl_avaluo_40},
+    {label:'Enajenación',peso:'20%',val:r.bm_enajenacion_20},
+    {label:'Viabilidad Jca.',peso:'30%',val:r.bn_viabilidad_30},
+  ];
+  return`
+  <div class="sem-header">
+    <div>
+      <div class="sem-pct-big" style="color:${textColor}">${pct}<span style="font-size:18px;font-weight:600">%</span></div>
+      <div class="sem-label-sub">Estado de Avance</div>
+    </div>
+    <div class="sem-bar-wrap">
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+        <span style="font-size:10px;color:var(--muted);font-family:var(--sans);font-weight:600;">PROGRESO TOTAL</span>
+        <span style="font-size:10px;color:var(--muted);font-family:var(--sans);">${pct}% completado</span>
+      </div>
+      <div class="sem-bar"><div class="sem-fill" style="width:${pct}%;background:${fillColor}"></div></div>
+    </div>
+  </div>
+  <div class="sem-items">
+    ${items.map(it=>{const ok=String(it.val||'').toUpperCase()==='OK';return`<div class="sem-item ${ok?'ok':'no'}">
+      <label>${it.label}</label>
+      <div class="sval">${ok?'✓ Cumple':'✕ No cumple'}</div>
+      <div class="spct">Peso: ${it.peso}</div>
+    </div>`;}).join('')}
+  </div>`;
+}
+
+function stitleHtml(iconPath,label){
+  return`<div class="stitle"><div class="stitle-icon">${icon(iconPath)}</div>${label}</div>`;
+}
+
+async function buscar(){
+  const q=document.getElementById('qi').value.trim();
+  const sb=document.getElementById('sb');
+  const res=document.getElementById('result');
+  if(!q)return;
+  sb.style.display='block';sb.className='loading';
+  sb.textContent='⏳ Consultando base de datos...';
+  res.style.display='none';
+  try{
+    const url=`${SUPABASE_URL}/rest/v1/inventario_SAE?fmi=eq.${encodeURIComponent(q)}&limit=1`;
+    const resp=await fetch(url,{
+      headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
+    });
+    if(!resp.ok)throw new Error('HTTP '+resp.status);
+    const data=await resp.json();
+    console.log('Datos recibidos:', data);
+    if(!data||data.length===0){
+      sb.style.display='block';sb.className='empty';
+      sb.textContent=`⚠ No se encontró ningún inmueble con FMI "${q}". Verifica el número e intenta de nuevo.`;return;
+    }
+    const r=data[0];
+
+    let vExists=false;
+    try{
+      const vResp=await fetch(`${SUPABASE_URL}/rest/v1/inventario_Activos?fmi=eq.${encodeURIComponent(q)}&select=fmi&limit=1`,{
+        headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
+      });
+      const vData=vResp.ok?await vResp.json():[];
+      vExists=Array.isArray(vData)&&vData.length>0;
+    }catch(_){}
+
+    sb.style.display='none';
+    res.style.display='block';
+
+    const mapLink=r.georeferenciado
+      ?`<a class="map-link" href="${r.georeferenciado}" target="_blank">${icon('<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>')} Ver ubicación en mapa</a>`
+      :'<span class="null">Sin georreferenciación</span>';
+
+    const dispBadge=String(r.disponibilidad||'').toUpperCase()==='DISPONIBLE'
+      ?'<span class="disp d-ok">✓ DISPONIBLE</span>'
+      :'<span class="disp d-no">✕ NO DISPONIBLE</span>';
+
+    res.innerHTML=`
+    <div class="top-card">
+      <div class="tc-left">
+        <div class="tc-label">Folio Matrícula Inmobiliaria</div>
+        <div class="fmi-num">${r.fmi}</div>
+        <div class="tc-sub">${fmt(r.clasificacion_activo)} &nbsp;·&nbsp; ${fmt(r.subtipo_activo)} &nbsp;·&nbsp; ${fmt(r.municipio)}, ${fmt(r.departamento)}</div>
+      </div>
+      <div class="tc-right">
+        ${dispBadge}
+        ${mapLink}
+      </div>
+    </div>
+    <div class="sec">
+      ${stitleHtml('<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>','Ubicación del Inmueble')}
+      <div class="g2">
+        <div class="f"><label>Dirección</label><div class="v">${fmt(r.direccion)}</div></div>
+        <div class="f"><label>Municipio / Departamento</label><div class="v">${fmt(r.municipio)}, ${fmt(r.departamento)}</div></div>
+        <div class="f"><label>Estrato</label><div class="v vm">${fmt(r.estrato)}</div></div>
+        <div class="f"><label>Razón Social</label><div class="v" style="font-size:11px">${fmt(r.razon_social)}</div></div>
+      </div>
+    </div>
+    <div class="sec">
+      ${stitleHtml('<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>','Estado del Inmueble')}
+      <div class="g3">
+        <div class="f"><label>Disponibilidad</label><div class="v">${chip(r.disponibilidad,'disp')}</div></div>
+        <div class="f"><label>Estado de Ocupación</label><div class="v">${chip(r.estado_ocupacion,'ocup')}</div></div>
+        <div class="f"><label>Estado Físico</label><div class="v">${chip(r.estado_fisico,'fis')}</div></div>
+        <div class="f"><label>Estado Legal</label><div class="v">${String(r.bm_enajenacion_20||'').toUpperCase()==='OK'?'<span class="chip cg">✓ Enajenación Temprana</span>':'<span class="chip cr">✕ Extinto 100</span>'}</div></div>
+        <div class="f"><label>Estado Viabilidad</label><div class="v">${vExists?'<span class="chip cg">✓ Sí</span>':'<span class="chip cr">✕ No</span>'}</div></div>
+      </div>
+    </div>
+    <div class="sec">
+      ${stitleHtml('<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>','Estado de Avance — Semáforo de Viabilidad')}
+      ${semaforo(r)}
+    </div>
+    <div class="sec">
+      ${stitleHtml('<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>','Avalúos y Áreas')}
+      <div class="g2">
+        <div class="f"><label>Vigencia Catastral</label><div class="v vm">${fmt(r.vigencia_catastral)}</div></div>
+        <div class="f"><label>Estado Avalúo</label><div class="v">${chip(r.estado_avaluo,'aval')}</div></div>
+        <div class="f"><label>Avalúo Catastral</label><div class="v vm">${fmtM(r.avaluo_catastral)}</div></div>
+        ${currentRole==='comercial'?`<div class="f"><label>Avalúo Comercial</label><div class="v vm">${fmtM(r.avaluo_comercial)}</div></div>`:''}
+        <div class="f"><label>Fecha de Avalúo</label><div class="v vm">${fmt(r.fecha_avaluo)}</div></div>
+        <div class="f"><label>Vencimiento Avalúo</label><div class="v vm">${fmt(r.fecha_vencimiento_avaluo)}</div></div>
+        <div class="f"><label>Área Construida</label><div class="v vm">${fmtA(r.area_construida)}</div></div>
+        <div class="f"><label>Área Terreno</label><div class="v vm">${fmtA(r.area_terreno)}</div></div>
+      </div>
+    </div>
+    <div class="sec">
+      ${stitleHtml('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>','Enajenación y Proceso')}
+      <div class="g2">
+        <div class="f"><label>Causal</label><div class="v">${fmt(r.causal)}</div></div>
+        <div class="f"><label>Enajenación</label><div class="v">${fmt(r.enajenacion)}</div></div>
+        <div class="f"><label>OK Vigencia Catastral</label><div class="v">${chip(r.ok_vigencia_catastral,'ok')}</div></div>
+        <div class="f"><label>OK Causal Enajenación</label><div class="v">${chip(r.ok_causal_enajenacion,'ok')}</div></div>
+        <div class="f"><label>Más de 5 Enajenaciones</label><div class="v vm">${fmt(r.mas_5_enajenacion)}</div></div>
+        <div class="f"><label>OK Vencimiento Avalúo</label><div class="v">${chip(r.ok_vencimiento_avaluo,'ok')}</div></div>
+        <div class="f"><label>Meses Viable Jurídico</label><div class="v vm">${fmtMeses(r.meses_viable_juridico)}</div></div>
+        <div class="f"><label>Proceso Actual</label><div class="v" style="font-size:11px">${fmt(r.proceso)}</div></div>
+      </div>
+    </div>
+    <div class="sec">
+      ${stitleHtml('<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>','Comercialización')}
+      <div class="g2">
+        <div class="f"><label>Estado Comercial</label><div class="v">${fmt(r.estado_comercial)}</div></div>
+        <div class="f"><label>Estado de Publicación</label><div class="v">${fmt(r.estado_publicacion)}</div></div>
+      </div>
+    </div>
+    `;
+  }catch(e){
+    sb.style.display='block';sb.className='error';
+    sb.textContent='⚠ Error al consultar la base de datos. Verifica tu conexión e intenta de nuevo.';
+  }
+}
+
+document.getElementById('admin-pw').addEventListener('input',function(){
+  document.getElementById('btn-kmz').style.display=this.value==='admin2026'?'inline-flex':'none';
+});
+
+function escXml(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function downloadKMZ(){
+  const status=document.getElementById('kmz-status');
+  const btn=document.getElementById('btn-kmz');
+  status.style.display='inline';
+  status.textContent='⏳ Descargando datos...';
+  btn.disabled=true;
+  try{
+    const url=SUPABASE_URL+'/rest/v1/inventario_SAE?georeferenciado=not.is.null&select=fmi,municipio,departamento,direccion,disponibilidad,estado_viabilidad,clasificacion_activo,georeferenciado&limit=40000';
+    const resp=await fetch(url,{headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Content-Type':'application/json'}});
+    if(!resp.ok)throw new Error('HTTP '+resp.status);
+    const data=await resp.json();
+    status.textContent=`⚙ Generando KML (${data.length} inmuebles)...`;
+    const re=/@(-?\d+\.\d+),(-?\d+\.\d+)/;
+    const placemarks=data.map(r=>{
+      const m=r.georeferenciado&&r.georeferenciado.match(re);
+      if(!m)return'';
+      const lon=m[1],lat=m[2];
+      return`    <Placemark>
+      <name>${escXml(r.fmi)}</name>
+      <description><![CDATA[FMI: ${r.fmi||'—'}
+Municipio: ${r.municipio||'—'}
+Departamento: ${r.departamento||'—'}
+Dirección: ${r.direccion||'—'}
+Disponibilidad: ${r.disponibilidad||'—'}
+Estado Viabilidad: ${r.estado_viabilidad||'—'}
+Clasificación: ${r.clasificacion_activo||'—'}]]></description>
+      <Point><coordinates>${lon},${lat},0</coordinates></Point>
+    </Placemark>`;
+    }).filter(Boolean).join('\n');
+    const kml=`<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Inventario Activos por Colombia</name>
+${placemarks}
+  </Document>
+</kml>`;
+    status.textContent='⚙ Comprimiendo...';
+    const zip=new JSZip();
+    zip.file('doc.kml',kml);
+    const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='inventario_activos.kmz';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+    status.textContent=`✓ Descargado — ${data.length} puntos georeferenciados`;
+  }catch(e){
+    console.error('KMZ error:',e);
+    status.textContent='⚠ Error: '+e.message;
+  }finally{
+    btn.disabled=false;
+  }
+}
