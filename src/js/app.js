@@ -1,37 +1,71 @@
+/* ── SUPABASE ── */
+const SUPABASE_URL='https://niemyawlnebylpidfefh.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pZW15YXdsbmVieWxwaWRmZWZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1OTAxNzUsImV4cCI6MjA5NDE2NjE3NX0.sUV59NOKURYE6kPDETaM_rddX_cDRltlu7xblC-OJF4';
+
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 /* ── AUTH ── */
+/* Las contraseñas ya NO viven en este archivo. El login se valida contra
+   Supabase Auth (auth.signInWithPassword), reutilizando el MISMO proyecto
+   y los MISMOS usuarios (broker2026, comercial2026) que ya se crearon
+   para Vista_inmuebles_SAE — este visor usa la misma base de datos, solo
+   muestra campos distintos (avalúos, semáforo de viabilidad, etc. en vez
+   de expresión de interés / código de subasta). */
 let currentRole = null;
-const CREDS = {
-  'broker2026':   { pass:'Activos2026#$', role:'broker' },
-  'comercial2026':{ pass:'2026', role:'comercial' }
+let currentUser = null;
+
+const USER_EMAILS = {
+  'broker2026':    'broker2026@sae-inmuebles.app',
+  'comercial2026': 'comercial2026@sae-inmuebles.app'
 };
 
-document.addEventListener('DOMContentLoaded',function(){
+document.addEventListener('DOMContentLoaded',async function(){
   document.getElementById('l-user').focus();
   ['l-user','l-pass'].forEach(id=>{
     document.getElementById(id).addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
   });
-});
 
-function doLogin(){
-  const user = document.getElementById('l-user').value.trim();
-  const pass = document.getElementById('l-pass').value;
-  const err  = document.getElementById('l-err');
-  const c    = CREDS[user];
-  if(c && c.pass === pass){
-    currentRole = c.role;
+  const { data:{ session } } = await supabaseClient.auth.getSession();
+  if(session){
+    currentUser = session.user;
+    currentRole = session.user.user_metadata?.role || 'comercial';
     document.getElementById('login-overlay').style.display = 'none';
     document.getElementById('hero-eyebrow').textContent =
-      user === 'broker2026' ? 'INTRANET BROKERS · 2026' : 'INTRANET COMERCIAL · 2026';
-  } else {
+      currentRole === 'broker' ? 'INTRANET BROKERS · 2026' : 'INTRANET COMERCIAL · 2026';
+  }
+});
+
+async function doLogin(){
+  const userInput = document.getElementById('l-user').value.trim();
+  const pass = document.getElementById('l-pass').value;
+  const err  = document.getElementById('l-err');
+  const btn  = document.getElementById('l-btn');
+  if(!userInput || !pass) return;
+
+  const email = USER_EMAILS[userInput] || userInput;
+
+  btn.disabled = true;
+  const btnTextoOriginal = btn.textContent;
+  btn.textContent = 'Ingresando...';
+
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
+
+  btn.disabled = false;
+  btn.textContent = btnTextoOriginal;
+
+  if(error || !data.session){
     err.style.display = 'block';
     document.getElementById('l-pass').value = '';
     document.getElementById('l-pass').focus();
+    return;
   }
-}
 
-/* ── SUPABASE ── */
-const SUPABASE_URL='https://niemyawlnebylpidfefh.supabase.co';
-const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pZW15YXdsbmVieWxwaWRmZWZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1OTAxNzUsImV4cCI6MjA5NDE2NjE3NX0.sUV59NOKURYE6kPDETaM_rddX_cDRltlu7xblC-OJF4';
+  currentUser = data.user;
+  currentRole = data.user.user_metadata?.role || 'comercial';
+  document.getElementById('login-overlay').style.display = 'none';
+  document.getElementById('hero-eyebrow').textContent =
+    currentRole === 'broker' ? 'INTRANET BROKERS · 2026' : 'INTRANET COMERCIAL · 2026';
+}
 
 document.getElementById('qi').addEventListener('keydown',e=>{if(e.key==='Enter')buscar();});
 
