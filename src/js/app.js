@@ -32,8 +32,32 @@ document.addEventListener('DOMContentLoaded',async function(){
     document.getElementById('login-overlay').style.display = 'none';
     document.getElementById('hero-eyebrow').textContent =
       currentRole === 'broker' ? 'INTRANET BROKERS · 2026' : 'INTRANET COMERCIAL · 2026';
+    iniciarControlInactividad();
   }
 });
+
+/* ── CIERRE DE SESIÓN AUTOMÁTICO POR INACTIVIDAD ──
+   Si no hay actividad (click, tecla, scroll) durante MINUTOS_INACTIVIDAD,
+   se cierra la sesión sola y se recarga la página. */
+const MINUTOS_INACTIVIDAD = 10;
+let temporizadorInactividad = null;
+
+function iniciarControlInactividad(){
+  ['click','keydown','mousemove','scroll','touchstart'].forEach(ev=>{
+    document.addEventListener(ev, reiniciarTemporizadorInactividad, {passive:true});
+  });
+  reiniciarTemporizadorInactividad();
+}
+
+function reiniciarTemporizadorInactividad(){
+  if(temporizadorInactividad) clearTimeout(temporizadorInactividad);
+  temporizadorInactividad = setTimeout(cerrarSesionPorInactividad, MINUTOS_INACTIVIDAD * 60 * 1000);
+}
+
+async function cerrarSesionPorInactividad(){
+  await supabaseClient.auth.signOut();
+  location.reload();
+}
 
 async function doLogin(){
   const userInput = document.getElementById('l-user').value.trim();
@@ -65,6 +89,7 @@ async function doLogin(){
   document.getElementById('login-overlay').style.display = 'none';
   document.getElementById('hero-eyebrow').textContent =
     currentRole === 'broker' ? 'INTRANET BROKERS · 2026' : 'INTRANET COMERCIAL · 2026';
+  iniciarControlInactividad();
 }
 
 document.getElementById('qi').addEventListener('keydown',e=>{if(e.key==='Enter')buscar();});
