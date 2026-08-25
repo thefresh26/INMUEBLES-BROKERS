@@ -38,15 +38,15 @@
     <h1>Encuentra la información <span>completa</span> del Inmueble</h1>
     <p>Ingresa el FMI para consultar disponibilidad, estado, semáforo de viabilidad y todos los detalles del activo.</p>
     <div class="search-card">
-      <label class="search-label">Número de FMI</label>
+      <label class="search-label">Número(s) de FMI</label>
       <div class="srow">
-        <input class="sinput" id="qi" placeholder="Ej: 50C-1874919" autocomplete="off" autocorrect="off" spellcheck="false">
+        <textarea class="sinput" id="qi" rows="1" placeholder="Ej: 50C-1874919  ·  o varios: 50C-1874919, 50C-1234567" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
         <button class="sbtn" onclick="buscar()">
           <svg style="display:inline;vertical-align:middle;margin-right:6px" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
           Consultar
         </button>
       </div>
-      <div class="shint">Presiona Enter para buscar · Base actualizada al 04 de Mayo de 2026</div>
+      <div class="shint">Separa varios FMIs con coma, punto y coma o saltos de línea · Enter para buscar (Shift+Enter para nueva línea) · Base actualizada al 04 de Mayo de 2026</div>
     </div>
   </div>
 </div>

@@ -92,7 +92,28 @@ async function doLogin(){
   iniciarControlInactividad();
 }
 
-document.getElementById('qi').addEventListener('keydown',e=>{if(e.key==='Enter')buscar();});
+document.getElementById('qi').addEventListener('keydown',e=>{
+  if(e.key==='Enter' && !e.shiftKey){
+    e.preventDefault();
+    buscar();
+  }
+});
+
+/* Separa el texto ingresado en una lista de FMIs.
+   Acepta comas, punto y coma, saltos de línea o espacios como separadores,
+   quita duplicados (sin importar mayúsculas/minúsculas) y vacíos. */
+function parseFmis(raw){
+  const vistos = new Set();
+  const lista = [];
+  raw.split(/[,;\n\r]+/).map(s=>s.trim()).filter(Boolean).forEach(fmi=>{
+    const clave = fmi.toUpperCase();
+    if(!vistos.has(clave)){
+      vistos.add(clave);
+      lista.push(fmi);
+    }
+  });
+  return lista;
+}
 
 function nul(v){return v===null||v===undefined||v==='';}
 function fmt(v){if(nul(v))return '<span class="null">—</span>';return String(v);}
@@ -205,49 +226,20 @@ function stitleHtml(iconPath,label){
   return`<div class="stitle"><div class="stitle-icon">${icon(iconPath)}</div>${label}</div>`;
 }
 
-async function buscar(){
-  const q=document.getElementById('qi').value.trim();
-  const sb=document.getElementById('sb');
-  const res=document.getElementById('result');
-  if(!q)return;
-  sb.style.display='block';sb.className='loading';
-  sb.textContent='⏳ Consultando base de datos...';
-  res.style.display='none';
-  try{
-    const url=`${SUPABASE_URL}/rest/v1/inventario_SAE?fmi=eq.${encodeURIComponent(q)}&limit=1`;
-    const resp=await fetch(url,{
-      headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
-    });
-    if(!resp.ok)throw new Error('HTTP '+resp.status);
-    const data=await resp.json();
-    console.log('Datos recibidos:', data);
-    if(!data||data.length===0){
-      sb.style.display='block';sb.className='empty';
-      sb.textContent=`⚠ No se encontró ningún inmueble con FMI "${q}". Verifica el número e intenta de nuevo.`;return;
-    }
-    const r=data[0];
+/* Construye el bloque de HTML con el detalle completo de UNA propiedad.
+   idx/total se usan para mostrar "Resultado N de M" cuando hay varios FMIs. */
+function renderPropiedadHtml(r,vExists,idx,total){
+  const mapLink=r.georeferenciado
+    ?`<a class="map-link" href="${r.georeferenciado.replace('www.google.com/maps','earth.google.com/web')}" target="_blank">${icon('<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>')} Ver en Google Earth</a>`
+    :'<span class="null">Sin georreferenciación</span>';
 
-    let vExists=false;
-    try{
-      const vResp=await fetch(`${SUPABASE_URL}/rest/v1/inventario_Activos?fmi=eq.${encodeURIComponent(q)}&select=fmi&limit=1`,{
-        headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
-      });
-      const vData=vResp.ok?await vResp.json():[];
-      vExists=Array.isArray(vData)&&vData.length>0;
-    }catch(_){}
+  const dispBadge=String(r.disponibilidad||'').toUpperCase()==='DISPONIBLE'
+    ?'<span class="disp d-ok">✓ DISPONIBLE</span>'
+    :'<span class="disp d-no">✕ NO DISPONIBLE</span>';
 
-    sb.style.display='none';
-    res.style.display='block';
-
-    const mapLink=r.georeferenciado
-      ?`<a class="map-link" href="${r.georeferenciado.replace('www.google.com/maps','earth.google.com/web')}" target="_blank">${icon('<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>')} Ver en Google Earth</a>`
-      :'<span class="null">Sin georreferenciación</span>';
-
-    const dispBadge=String(r.disponibilidad||'').toUpperCase()==='DISPONIBLE'
-      ?'<span class="disp d-ok">✓ DISPONIBLE</span>'
-      :'<span class="disp d-no">✕ NO DISPONIBLE</span>';
-
-    res.innerHTML=`
+  return`
+  <div class="prop-block" id="prop-${idx}">
+    ${total>1?`<div class="prop-counter">Resultado ${idx+1} de ${total}</div>`:''}
     <div class="top-card">
       <div class="tc-left">
         <div class="tc-label">Folio Matrícula Inmobiliaria</div>
@@ -312,7 +304,83 @@ async function buscar(){
         <div class="f"><label>Estado de Publicación</label><div class="v">${fmt(r.estado_publicacion)}</div></div>
       </div>
     </div>
-    `;
+  </div>`;
+}
+
+async function buscar(){
+  const raw=document.getElementById('qi').value.trim();
+  const sb=document.getElementById('sb');
+  const res=document.getElementById('result');
+  if(!raw)return;
+
+  const fmis=parseFmis(raw);
+  if(fmis.length===0)return;
+
+  sb.style.display='block';sb.className='loading';
+  sb.textContent=fmis.length===1
+    ?'⏳ Consultando base de datos...'
+    :`⏳ Consultando ${fmis.length} FMIs en la base de datos...`;
+  res.style.display='none';
+  res.innerHTML='';
+
+  try{
+    const listaFiltro=fmis.map(f=>encodeURIComponent(f)).join(',');
+
+    const url=`${SUPABASE_URL}/rest/v1/inventario_SAE?fmi=in.(${listaFiltro})`;
+    const resp=await fetch(url,{
+      headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
+    });
+    if(!resp.ok)throw new Error('HTTP '+resp.status);
+    const data=await resp.json();
+    console.log('Datos recibidos:', data);
+
+    if(!data||data.length===0){
+      sb.style.display='block';sb.className='empty';
+      sb.textContent=fmis.length===1
+        ?`⚠ No se encontró ningún inmueble con FMI "${fmis[0]}". Verifica el número e intenta de nuevo.`
+        :`⚠ No se encontró ningún inmueble con los FMIs ingresados. Verifica los números e intenta de nuevo.`;
+      return;
+    }
+
+    /* Mapa fmi(en mayúsculas) -> registro, para poder ordenar los resultados
+       en el mismo orden en que el usuario los escribió y detectar los que
+       no aparecieron en la base de datos. */
+    const porFmi=new Map();
+    data.forEach(rec=>porFmi.set(String(rec.fmi||'').toUpperCase(),rec));
+
+    const encontrados=fmis.filter(f=>porFmi.has(f.toUpperCase()));
+    const noEncontrados=fmis.filter(f=>!porFmi.has(f.toUpperCase()));
+
+    let vigentesEnActivos=new Set();
+    try{
+      const vResp=await fetch(`${SUPABASE_URL}/rest/v1/inventario_Activos?fmi=in.(${listaFiltro})&select=fmi`,{
+        headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
+      });
+      const vData=vResp.ok?await vResp.json():[];
+      if(Array.isArray(vData)){
+        vData.forEach(rec=>vigentesEnActivos.add(String(rec.fmi||'').toUpperCase()));
+      }
+    }catch(_){}
+
+    sb.style.display='none';
+    res.style.display='block';
+
+    const total=encontrados.length;
+    const bloques=encontrados.map((f,idx)=>{
+      const r=porFmi.get(f.toUpperCase());
+      const vExists=vigentesEnActivos.has(f.toUpperCase());
+      return renderPropiedadHtml(r,vExists,idx,total);
+    }).join('<div class="prop-divider"></div>');
+
+    const avisoNoEncontrados=noEncontrados.length
+      ?`<div class="not-found-banner">⚠ No se encontraron ${noEncontrados.length===1?'el FMI':'los FMIs'}: ${noEncontrados.map(f=>`<span class="nf-tag">${f}</span>`).join(' ')}</div>`
+      :'';
+
+    const navFmis=total>1
+      ?`<div class="fmi-nav">${encontrados.map((f,idx)=>`<a href="#prop-${idx}" class="fmi-nav-item">${f}</a>`).join('')}</div>`
+      :'';
+
+    res.innerHTML=avisoNoEncontrados+navFmis+bloques;
   }catch(e){
     sb.style.display='block';sb.className='error';
     sb.textContent='⚠ Error al consultar la base de datos. Verifica tu conexión e intenta de nuevo.';
