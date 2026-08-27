@@ -29,12 +29,21 @@ document.addEventListener('DOMContentLoaded',async function(){
   if(session){
     currentUser = session.user;
     currentRole = session.user.user_metadata?.role || 'comercial';
-    document.getElementById('login-overlay').style.display = 'none';
+    ocultarLoginOverlay();
     document.getElementById('hero-eyebrow').textContent =
       currentRole === 'broker' ? 'INTRANET BROKERS · 2026' : 'INTRANET COMERCIAL · 2026';
     iniciarControlInactividad();
   }
 });
+
+/* Oculta el overlay de login con una transición suave (fade + leve
+   desplazamiento) en vez de un display:none instantáneo. Se deja el
+   elemento en el DOM (opacity 0 + visibility hidden con delay) para no
+   depender de temporizadores en JS que deban coincidir con la duración
+   del CSS, y para que los campos ocultos no queden alcanzables con Tab. */
+function ocultarLoginOverlay(){
+  document.getElementById('login-overlay').classList.add('lo-hide');
+}
 
 /* ── CIERRE DE SESIÓN AUTOMÁTICO POR INACTIVIDAD ──
    Si no hay actividad (click, tecla, scroll) durante MINUTOS_INACTIVIDAD,
@@ -78,7 +87,7 @@ async function doLogin(){
   btn.textContent = btnTextoOriginal;
 
   if(error || !data.session){
-    err.style.display = 'block';
+    err.classList.add('show');
     document.getElementById('l-pass').value = '';
     document.getElementById('l-pass').focus();
     return;
@@ -86,7 +95,7 @@ async function doLogin(){
 
   currentUser = data.user;
   currentRole = data.user.user_metadata?.role || 'comercial';
-  document.getElementById('login-overlay').style.display = 'none';
+  ocultarLoginOverlay();
   document.getElementById('hero-eyebrow').textContent =
     currentRole === 'broker' ? 'INTRANET BROKERS · 2026' : 'INTRANET COMERCIAL · 2026';
   iniciarControlInactividad();
